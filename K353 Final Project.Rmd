@@ -1,0 +1,250 @@
+---
+title: "K353 Final Project"
+author: "Raunav Sharma"
+date: "11/22/2020"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data.frame <- train
+```
+
+
+
+```{r}
+
+summary(train)
+
+```
+
+#These are the appropriate statistics. 
+
+
+
+```{r}
+train$Survived = factor(train$Survived)
+train$Pclass = factor(train$Pclass, order=TRUE, levels = c(3, 2, 1))
+```
+
+
+
+
+
+
+```{r}
+library(ggplot2)
+
+ggplot(train, aes(x = Survived, fill = Sex)) +
+  geom_bar(position = position_dodge()) +
+  geom_text(stat='Count', aes(label=stat(count)), position = position_dodge(width = 1), vjust = -.5) +
+  theme_classic()
+
+
+```
+# In this chart, I've taken the survival count with respect to gender. 
+# 0 = Didn't Survive and 1 = Survived 
+# We can infer that a very less number of people survived and in those more number of females survived than males.
+# I've taken this data because it gives us a sense as to which gender had a better survival. 
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+ggplot(train, aes(x = Survived, fill = Pclass)) +
+  geom_bar(position = position_dodge()) +
+  geom_text(stat='Count', aes(label=stat(count)), position = position_dodge(width = 1), vjust = -.5) +
+  theme_classic()
+
+
+```
+
+# Here, I've taken the data to find out the chance of survival of passengers according to which class they belong to. I feel that passenger class is an important factor to determine the outcome variable. 
+# 0 = Didn't Survive and 1 = Survived 
+#We can infer that the chances of survival for passengers in 1st class was more than the others
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+ggplot(train, aes(x = Age)) +
+ geom_density(fill='coral')
+ 
+```
+# I've taken this to show which age group the passengers are from. Density plots give us this approximation. I feel that this gives us an idea as to what age group the passengers belong to and from here, we can get a bigger picture regarding the survival rate.
+#This is the age density. Most of the passengers were in age group of 20 to 40.
+
+
+
+
+
+
+
+
+```{r}
+library(Amelia)
+missmap(data.frame, col = c("black", "grey"))
+```
+
+
+
+
+
+
+```{r}
+library(dplyr)
+data.frame = select(data.frame, Survived, Pclass, Age, Sex, SibSp, Parch)
+```
+
+
+```{r}
+data.frame = na.omit(data.frame)
+```
+
+
+
+```{r}
+str(data.frame)
+```
+
+
+```{r}
+data.frame$Survived = factor(data.frame$Survived)
+data.frame$Pclass = factor(data.frame$Pclass, order=TRUE, levels = c(3, 2, 1))
+```
+
+
+
+
+
+
+```{r}
+train_test_split = function(data, fraction = 0.8, train = TRUE) {
+  total_rows = nrow(data)
+  train_rows = fraction * total_rows
+  sample = 1:train_rows
+  if (train == TRUE) {
+    return (data[sample, ])
+  } else {
+    return (data[-sample, ])
+  }
+}
+```
+
+
+
+```{r}
+train <- train_test_split(data.frame, 0.8, train = TRUE)
+test <- train_test_split(data.frame, 0.8, train = FALSE)
+```
+
+
+
+
+
+
+
+
+```{r}
+library(rpart)
+library(rpart.plot)
+fit <- rpart(Survived~., data = train, method = 'class')
+rpart.plot(fit, extra = 106)
+```
+
+
+
+
+
+```{r}
+data_rescale = mutate_if(data.frame,
+                          is.numeric,
+                          list(~as.numeric(scale(.))))
+r_train = train_test_split(data_rescale, 0.7, train = TRUE)
+r_test = train_test_split(data_rescale, 0.7, train = FALSE)
+logit = glm(Survived~., data = r_train, family = 'binomial')
+summary(logit)
+lr_predict = predict(logit, r_test, type = 'response')
+# confusion matrix
+table_mat = table(r_test$Survived, lr_predict > 0.68)
+lr_accuracy = sum(diag(table_mat)) / sum(table_mat)
+paste("The accuracy is : ", lr_accuracy)
+```
+
+
+
+
+```{r}
+library(e1071)
+nb_model = naiveBayes(Survived ~., data=train)
+nb_predict = predict(nb_model,test)
+table_mat = table(nb_predict, test$Survived)
+nb_accuracy = sum(diag(table_mat)) / sum(table_mat)
+paste("The accuracy is : ", nb_accuracy)
+```
+
+
+
+
+
+```{r}
+library(class)
+library(dummies)
+# one hot encoding using dummy
+ohdata = cbind(data.frame, dummy(data.frame$Pclass))
+ohdata = cbind(ohdata, dummy(ohdata$Sex))
+# drop original factor variables
+ohdata$Pclass = NULL
+ohdata$Sex = NULL
+ohtrain = train_test_split(ohdata, 0.8, train = TRUE)
+ohtest = train_test_split(ohdata, 0.8, train = FALSE)
+train_labels = select(ohtrain, Survived)[,1]
+test_labels = select(ohtest, Survived)[,1]
+# drop labels for prediction
+ohtrain$Survived=NULL
+ohtest$Survived=NULL
+knn_predict = knn(train = ohtrain,
+                  test = ohtest,
+                  cl = train_labels,
+                  k=10)
+table_mat = table(knn_predict, test_labels)
+accuracy_knn = sum(diag(table_mat)) / sum(table_mat)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
